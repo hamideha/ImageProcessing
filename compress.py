@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import bilinear
+from bilinear import bilinear
 
 def compress(img):
   img = cv2.imread(img, 1)
