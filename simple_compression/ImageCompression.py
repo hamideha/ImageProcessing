@@ -7,7 +7,7 @@ class ImageCompression:
         self.original_image = cv2.imread(img_path, 1)
         self.image = cv2.imread(img_path, 1)
 
-    def downsample(self):
+    def encode(self):
         '''
         Downsamples image in YCbCr colorspace
         Returns: Downsampled Y, Cb, Cr channels as tuple
@@ -25,7 +25,7 @@ class ImageCompression:
 
         return (Y, Cb, Cr)
 
-    def upsample(self, Y, Cb, Cr):
+    def decode(self, Y, Cb, Cr):
         '''
         Upsamples image in YCbCr colorspace
         Parameters: Y, Cb, Cr channels
@@ -88,31 +88,37 @@ class ImageCompression:
 
         upsampled = np.empty([new_height, new_width])
 
-        x_ratio = float(width - 1) / (new_width - 1)
-        y_ratio = float(height - 1) / (new_height - 1)
+        # Find the ratio/interval between every new pixel
+        # The -1 is to account for the already existing pixels
+        x_ratio = float((width - 1) / (new_width - 1))
+        y_ratio = float((height - 1) / (new_height - 1))
 
         for i in range(new_height):
             for j in range(new_width):
 
-                # Find the 4 surrounding pixels
-                x_l, y_l = math.floor(x_ratio * j), math.floor(y_ratio * i)
-                x_h, y_h = math.ceil(x_ratio * j), math.ceil(y_ratio * i)
+                # Find the coordinates of the 4 surrounding pixels
+                x1 = math.floor(x_ratio * j)
+                y1 = math.floor(y_ratio * i)
+                x2 = math.ceil(x_ratio * j)
+                y2 = math.ceil(y_ratio * i)
+
+                # The 4 nearest points to the unknown pixel are P(y1, x1), P(y1, x2), P(y2, x1), P(y2, x2)
+                # Note that indexing is [y, x] since the image dimensions are (height, width)
+                p11 = image[y1, x1]
+                p12 = image[y1, x2]
+                p21 = image[y2, x1]
+                p22 = image[y2, x2]
 
                 # Find the weights for each pixel based on distance from the pixel to be interpolated
-                x_weight = (x_ratio * j) - x_l
-                y_weight = (y_ratio * i) - y_l
+                x_weight = (x_ratio * j) - x1
+                y_weight = (y_ratio * i) - y1
 
-                # Interpolate  
-                a = image[y_l, x_l]
-                b = image[y_l, x_h]
-                c = image[y_h, x_l]
-                d = image[y_h, x_h]
-
-                pixel = a * (1 - x_weight) * (1 - y_weight) + b * x_weight * (1 -
-                                                                              y_weight) + c * y_weight * (1 - x_weight) + d * x_weight * y_weight
+                pixel = p11 * (1 - x_weight) * (1 - y_weight) + \
+                p12 * x_weight * (1 - y_weight) + \
+                p21 * y_weight * (1 - x_weight) + \
+                p22 * x_weight * y_weight
 
                 upsampled[i, j] = pixel.astype(np.uint8)
-
         return upsampled
 
     def get_psnr(self):
@@ -130,8 +136,8 @@ def main():
     image = ImageCompression('birds.jpg')
     original_image = image.get_original_image()
 
-    downsampled_image = image.downsample()
-    upsampled_image = image.upsample(*downsampled_image)
+    downsampled_image = image.encode()
+    upsampled_image = image.decode(*downsampled_image)
 
     psnr = image.get_psnr()
     print(psnr)
