@@ -133,16 +133,18 @@ class ImageCompression:
 
 
 def main():
-    image = ImageCompression('birds.jpg')
-    original_image = image.get_original_image()
+    file_path = 'birds.jpg'
+    image = ImageCompression(file_path)
 
     downsampled_image = image.encode()
     upsampled_image = image.decode(*downsampled_image)
 
     psnr = image.get_psnr()
-    print(psnr)
-    cv2.imwrite('upsampled.jpg', upsampled_image)
-    cv2.imshow('Original', original_image)
+    print('PSNR:', psnr)
+
+    # Get the filename from the file path
+    cv2.imwrite(file_path.split('/')[-1].split('.')[0] +'_upsampled.jpg', upsampled_image)
+    cv2.imshow('Original', image.get_original_image())
     cv2.imshow('Upsampled', upsampled_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
