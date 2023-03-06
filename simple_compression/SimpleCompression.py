@@ -2,18 +2,17 @@ import cv2
 import numpy as np
 import math
 
-class ImageCompression:
+class Encoder:
     def __init__(self, img_path):
-        self.original_image = cv2.imread(img_path, 1)
         self.image = cv2.imread(img_path, 1)
-        self.filename = img_path.split('/')[-1].split('.')[0]
+        self.ycbcr = ()
 
     def encode(self):
         '''
         Downsamples image in YCbCr colorspace
         Returns: Downsampled Y, Cb, Cr channels as tuple
         '''
-        B, G, R = cv2.split(self.original_image)
+        B, G, R = cv2.split(self.image)
 
         Y, Cb, Cr = self.rgb2ycbcr(R, G, B)
 
@@ -24,28 +23,8 @@ class ImageCompression:
         Cb = Cb[::4, ::4]
         Cr = Cr[::4, ::4]
 
-        return (Y, Cb, Cr)
-
-    def decode(self, Y, Cb, Cr):
-        '''
-        Upsamples image in YCbCr colorspace
-        Parameters: Y, Cb, Cr channels
-        Returns: Reconstructed image
-        '''
-        size = self.original_image.shape[:2]
-
-        # Upsample Y by a factor of 2
-        Y = self.bilinear(Y, size)
-
-        # Upsample Cb and Cr by a factor of 4
-        Cb = self.bilinear(Cb, size)
-        Cr = self.bilinear(Cr, size)
-
-        R, G, B = self.ycbcr2rgb(Y, Cb, Cr)
-
-        self.image = cv2.merge((B, G, R))
-        return cv2.merge((B, G, R))
-
+        self.ycbcr = (Y, Cb, Cr)
+    
     def rgb2ycbcr(self, R, G, B):
         '''
         Convert RGB colorspace to YCbCr colorspace
@@ -61,8 +40,34 @@ class ImageCompression:
         Cr = np.clip(Cr, 0, 255).astype(np.uint8)
 
         return (Y, Cb, Cr)
+    
+    def get_ycbcr(self):
+        return self.ycbcr
+    
+class Decoder:
+    def __init__(self, ycbcr, size):
+        self.ycbcr = ycbcr
+        self.size = size
 
-    def ycbcr2rgb(self, Y, Cb, Cr):
+    def decode(self):
+        '''
+        Upsamples image in YCbCr colorspace
+        Parameters: Y, Cb, Cr channels
+        Returns: Reconstructed image
+        '''
+        # Upsample Y by a factor of 2
+        Y = self.__bilinear(self.ycbcr[0], self.size)
+
+        # Upsample Cb and Cr by a factor of 4
+        Cb = self.__bilinear(self.ycbcr[1], self.size)
+        Cr = self.__bilinear(self.ycbcr[2], self.size)
+
+        R, G, B = self.__ycbcr2rgb(Y, Cb, Cr)
+
+        self.image = cv2.merge((B, G, R))
+        return cv2.merge((B, G, R))
+
+    def __ycbcr2rgb(self, Y, Cb, Cr):
         '''
         Convert YCbCr colorspace to RGB colorspace
         Parameters: Y, Cb, Cr channels
@@ -78,7 +83,7 @@ class ImageCompression:
 
         return (R, G, B)
 
-    def bilinear(self, image, dimension):
+    def __bilinear(self, image, dimension):
         '''
         Bilinear interpolation
         Parameters: Downsampled channel and dimension to upsample to
@@ -122,29 +127,35 @@ class ImageCompression:
                 upsampled[i, j] = pixel.astype(np.uint8)
         return upsampled
 
-    def get_psnr(self):
-        mse = np.mean((self.original_image - self.image) ** 2)
+    def get_psnr(self, original_image):
+        mse = np.mean((original_image - self.image) ** 2)
         return 10 * math.log10(255.0**2 / mse)
 
     def get_image(self):
         return self.image
 
-    def get_original_image(self):
-        return self.original_image
-
-
 def main():
-    image = ImageCompression('birds.jpg')
+    PATH = 'motorcycles.png'
+    FILENAME = PATH.split('/')[-1].split('.')[0]
+    EXTENSION = PATH.split('.')[-1]
+    original_image = cv2.imread(PATH, 1)
 
-    downsampled_image = image.encode()
-    upsampled_image = image.decode(*downsampled_image)
+    encoder = Encoder(PATH)
+    encoder.encode()
+    downsampled_image = encoder.get_ycbcr()
 
-    psnr = image.get_psnr()
+    decoder = Decoder(downsampled_image, original_image.shape[:2])
+    decoder.decode()
+    final_image = decoder.get_image()
+
+    psnr = decoder.get_psnr(original_image)
     print('PSNR:', psnr)
-
-    cv2.imwrite(image.filename +'_upsampled.jpg', upsampled_image)
-    cv2.imshow('Original', image.get_original_image())
-    cv2.imshow('Upsampled', upsampled_image)
+    cv2.imwrite(f"{FILENAME}_upsampled.{EXTENSION}", final_image)
+    cv2.imshow('Y', downsampled_image[0])
+    cv2.imshow('Cb', downsampled_image[1])
+    cv2.imshow('Cr', downsampled_image[2])
+    cv2.imshow('Original', original_image)
+    cv2.imshow('Upsampled', final_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
