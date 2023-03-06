@@ -3,9 +3,9 @@ import numpy as np
 import math
 
 class Encoder:
-    def __init__(self, img_path):
-        self.image = cv2.imread(img_path, 1)
-        self.ycbcr = ()
+    def __init__(self, image):
+        self.image = image
+        self.ycbcr = (0,0,0)
 
     def encode(self):
         '''
@@ -45,21 +45,21 @@ class Encoder:
         return self.ycbcr
     
 class Decoder:
-    def __init__(self, ycbcr, size):
+    def __init__(self, ycbcr):
         self.ycbcr = ycbcr
-        self.size = size
 
-    def decode(self):
+    def decode(self, size):
         '''
         Upsamples image in YCbCr colorspace
+        Parameters: Size of image to upsample to
         Returns: Reconstructed image
         '''
         # Upsample Y by a factor of 2
-        Y = self.__bilinear(self.ycbcr[0], self.size)
+        Y = self.__bilinear(self.ycbcr[0], size)
 
         # Upsample Cb and Cr by a factor of 4
-        Cb = self.__bilinear(self.ycbcr[1], self.size)
-        Cr = self.__bilinear(self.ycbcr[2], self.size)
+        Cb = self.__bilinear(self.ycbcr[1], size)
+        Cr = self.__bilinear(self.ycbcr[2], size)
 
         R, G, B = self.__ycbcr2rgb(Y, Cb, Cr)
 
@@ -139,12 +139,12 @@ def main():
     EXTENSION = PATH.split('.')[-1]
     original_image = cv2.imread(PATH, 1)
 
-    encoder = Encoder(PATH)
+    encoder = Encoder(original_image)
     encoder.encode()
     downsampled_image = encoder.get_ycbcr()
 
-    decoder = Decoder(downsampled_image, original_image.shape[:2])
-    decoder.decode()
+    decoder = Decoder(downsampled_image)
+    decoder.decode(original_image.shape[:2])
     final_image = decoder.get_image()
 
     psnr = decoder.get_psnr(original_image)
