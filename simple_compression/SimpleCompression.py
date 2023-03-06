@@ -52,7 +52,6 @@ class Decoder:
     def decode(self):
         '''
         Upsamples image in YCbCr colorspace
-        Parameters: Y, Cb, Cr channels
         Returns: Reconstructed image
         '''
         # Upsample Y by a factor of 2
