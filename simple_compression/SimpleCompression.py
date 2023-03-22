@@ -14,7 +14,7 @@ class Encoder:
         '''
         B, G, R = cv2.split(self.image)
 
-        Y, Cb, Cr = self.rgb2ycbcr(R, G, B)
+        Y, Cb, Cr = self.__rgb2ycbcr(R, G, B)
 
         # Downsample Y by a factor of 2
         Y = Y[::2, ::2]
@@ -25,7 +25,7 @@ class Encoder:
 
         self.ycbcr = (Y, Cb, Cr)
     
-    def rgb2ycbcr(self, R, G, B):
+    def __rgb2ycbcr(self, R, G, B):
         '''
         Convert RGB colorspace to YCbCr colorspace
         Parameters: R, G, B channels
